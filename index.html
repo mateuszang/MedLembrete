@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedLembrete - Meu Assistente de Saúde</title>
+  
+  <!-- Tailwind CSS para Estilização Moderna -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Fontes de Alta Legibilidade (Atkinson Hyperlegible para idosos e Fraunces para títulos amigáveis) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fraunces:opsz,wght@9..144,600;9..144,800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --text-scale: 1.0;
+    }
+    
+    body {
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      background-color: #F4F8F5; /* Tom verde clínico pálido e relaxante */
+      color: #152A18; /* Contraste super alto para leitura facilitada */
+      font-size: calc(16px * var(--text-scale));
+    }
+
+    h1, h2, h3, .font-display {
+      font-family: 'Fraunces', serif;
+    }
+
+    /* Botões grandes e fáceis de tocar para idosos */
+    .btn-large {
+      min-height: 64px;
+      touch-action: manipulation;
+    }
+
+    /* Animação suave para o alarme pulsar visualmente */
+    @keyframes alert-pulse {
+      0%, 100% { background-color: #FEF2F2; border-color: #EF4444; }
+      50% { background-color: #FEE2E2; border-color: #DC2626; }
+    }
+    .pulsing-alarm {
+      animation: alert-pulse 1.5s infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-24">
+
+  <!-- Cabeçalho Principal (Acessibilidade + Voz) -->
+  <header class="bg-emerald-800 text-white shadow-md sticky top-0 z-40 px-4 py-4">
+    <div class="max-w-md mx-auto flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <!-- Ícone de Escudo de Saúde / Coração em Vetor Minimalista -->
+          <svg class="w-8 h-8 text-emerald-300" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+          </svg>
+          <span class="text-2xl font-bold font-display tracking-tight">MedLembrete</span>
+        </div>
+        
+        <!-- Botão de Ouvir Ajuda por Voz -->
+        <button id="btn-falar-ajuda" onclick="lerTexto('Bem vindo ao Med Lembrete. Aqui estão as suas doses programadas para o dia de hoje.')" class="p-2 bg-emerald-700 hover:bg-emerald-600 rounded-full text-white transition-all flex items-center gap-1.5 text-sm font-bold border border-emerald-500" aria-label="Ouvir ajuda">
+          <svg class="w-5 h-5 text-emerald-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"/>
+          </svg>
+          <span>Ouvir</span>
+        </button>
+      </div>
+
+      <!-- Barra de Acessibilidade (Ajuste do Tamanho da Fonte) -->
+      <div class="flex items-center justify-between bg-emerald-900/60 p-2 rounded-xl border border-emerald-700/80">
+        <span class="text-sm font-bold text-emerald-100 flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-emerald-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 21a.75.75 0 01-.75-.75V3.75a.75.75 0 011.5 0v16.5a.75.75 0 01-.75.75zM4.125 12h12.75" />
+          </svg>
+          Letras:
+        </span>
+        <div class="flex gap-2">
+          <button onclick="ajustarTexto(-0.1)" class="px-4 py-1.5 bg-emerald-700 active:bg-emerald-600 rounded-lg text-lg font-bold border border-emerald-500" aria-label="Diminuir texto">A-</button>
+          <button onclick="reiniciarTexto()" class="px-3 py-1.5 bg-emerald-700 active:bg-emerald-600 rounded-lg text-sm font-bold border border-emerald-500" aria-label="Tamanho padrão">Padrão</button>
+          <button onclick="ajustarTexto(0.1)" class="px-4 py-1.5 bg-emerald-700 active:bg-emerald-600 rounded-lg text-lg font-bold border border-emerald-500" aria-label="Aumentar texto">A+</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto p-4 flex flex-col gap-6">
+
+    <!-- Seção de Relógio Principal do Dia -->
+    <section class="bg-amber-50/80 border-2 border-amber-300 rounded-2xl p-5 shadow-sm flex flex-col gap-3">
+      <div class="flex items-center gap-3">
+        <!-- Ícone do Relógio Minimalista -->
+        <svg class="w-10 h-10 text-amber-700 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div>
+          <h2 class="text-base font-bold text-amber-800 uppercase tracking-wider">Hora do Dia</h2>
+          <p id="relogio-grande" class="text-3xl font-bold text-amber-900 tracking-wider">00:00:00</p>
+        </div>
+      </div>
+      <p id="proxima-dose-status" class="text-md text-amber-900 font-medium bg-amber-100/50 p-3 rounded-xl border border-amber-200">
+        Nenhum remédio cadastrado para hoje.
+      </p>
+    </section>
+
+    <!-- Botão Principal de Cadastrar Medicamento -->
+    <button onclick="abrirModalCadastro()" class="btn-large bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl shadow-md flex items-center justify-center gap-3 transition-all border-b-8 border-emerald-800 active:border-b-2 active:translate-y-1">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+      </svg>
+      <span class="text-xl font-bold tracking-wide">CADASTRAR NOVO REMÉDIO</span>
+    </button>
+
+    <!-- Seção: Doses Planejadas do Dia (Interativa e com Checkbox) -->
+    <section class="flex flex-col gap-3">
+      <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-bold font-display text-emerald-900">Doses de Hoje</h2>
+        <button onclick="limparProgressoHoje()" class="text-sm font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 px-3.5 py-2 rounded-xl border border-rose-200 transition-colors">
+          Zerar Dia
+        </button>
+      </div>
+      
+      <p class="text-sm text-gray-600">Marque o círculo assim que tomar o medicamento:</p>
+
+      <div id="lista-doses-hoje" class="flex flex-col gap-3">
+        <!-- Inserido dinamicamente via JS -->
+        <div class="bg-white p-6 rounded-2xl border-2 border-gray-200 text-center text-gray-500">
+          Carregando doses agendadas...
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção: Lista de Medicamentos Gerenciados (CRUD) -->
+    <section class="flex flex-col gap-3 mt-4">
+      <h2 class="text-2xl font-bold font-display text-emerald-900">Meus Medicamentos</h2>
+      <div id="lista-medicamentos" class="flex flex-col gap-3">
+        <!-- Inserido dinamicamente via JS -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- MODAL: CADASTRAR REMÉDIO (Formulário Acessível) -->
+  <!-- ========================================== -->
+  <div id="modal-cadastro" class="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border border-emerald-800 max-h-[90vh] flex flex-col">
+      
+      <!-- Cabeçalho Modal -->
+      <div class="bg-emerald-800 text-white p-5 flex justify-between items-center">
+        <h3 class="text-2xl font-bold font-display">Cadastrar Novo Remédio</h3>
+        <button onclick="fecharModalCadastro()" class="p-2 hover:bg-emerald-700 rounded-full text-white text-2xl" aria-label="Fechar janela">✕</button>
+      </div>
+
+      <!-- Corpo do Formulário -->
+      <form id="form-cadastro" onsubmit="salvarMedicamento(event)" class="p-6 overflow-y-auto flex flex-col gap-5">
+        
+        <!-- Nome do Remédio -->
+        <div class="flex flex-col gap-1.5">
+          <label for="med-nome" class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-700" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Nome do Remédio:
+          </label>
+          <input type="text" id="med-nome" required placeholder="Ex: Remédio da Pressão, Aspirina..." class="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-emerald-600 focus:ring-0">
+        </div>
+
+        <!-- Horário da Primeira Dose -->
+        <div class="flex flex-col gap-1.5">
+          <label for="med-primeira-dose" class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-700" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+            </svg>
+            Horário da Primeira Dose:
+          </label>
+          <p class="text-sm text-emerald-800 font-medium">A que horas você vai tomar a primeira dose de hoje?</p>
+          <input type="time" id="med-primeira-dose" required class="w-full p-4 border-2 border-gray-300 rounded-xl text-2xl font-bold text-center focus:border-emerald-600 focus:ring-0">
+        </div>
+
+        <!-- Intervalo de Horas -->
+        <div class="flex flex-col gap-2">
+          <label class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-700" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+            De quantas em quantas horas você deve tomar?
+          </label>
+          
+          <!-- Seletores rápidos adaptados -->
+          <div class="grid grid-cols-2 gap-2" id="grupo-intervalos">
+            <button type="button" onclick="selecionarIntervalo(4, this)" class="btn-intervalo border-2 border-gray-300 p-3 rounded-xl font-bold text-base hover:border-emerald-500">A cada 4 horas</button>
+            <button type="button" onclick="selecionarIntervalo(6, this)" class="btn-intervalo border-2 border-gray-300 p-3 rounded-xl font-bold text-base hover:border-emerald-500">A cada 6 horas</button>
+            <button type="button" onclick="selecionarIntervalo(8, this)" class="btn-intervalo border-2 border-gray-300 p-3 rounded-xl font-bold text-base hover:border-emerald-500">A cada 8 horas</button>
+            <button type="button" onclick="selecionarIntervalo(12, this)" class="btn-intervalo border-2 border-gray-300 p-3 rounded-xl font-bold text-base hover:border-emerald-500">A cada 12 horas</button>
+            <button type="button" onclick="selecionarIntervalo(24, this)" class="btn-intervalo border-2 border-gray-300 p-3 rounded-xl font-bold text-base hover:border-emerald-500 col-span-2">Apenas 1 vez por dia (24h)</button>
+          </div>
+          
+          <div class="flex items-center gap-2 mt-1">
+            <span class="text-sm font-bold text-gray-700">Ou digite outro intervalo:</span>
+            <input type="number" id="med-intervalo-custom" min="1" max="24" placeholder="Ex: 5" class="w-20 p-2 border-2 border-gray-300 rounded-lg text-center font-bold text-lg">
+            <span class="text-sm font-bold text-gray-700">horas.</span>
+          </div>
+        </div>
+
+        <!-- Quantidade Total de Doses -->
+        <div class="flex flex-col gap-1.5">
+          <label for="med-total-doses" class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-700" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.03 0 1.9.693 2.166 1.638m-7.377 12.481c-.131.222-.277.43-.439.624m.44-2.262c.131-.222.277-.43.439-.624m-1.44-.316h-.008v-.008H9.75v.008zm1.44 2.262c.131.222.277.43.439.624m-.44-2.262c-.131-.222-.277-.43-.439-.624m-1.44-2.262c-.131-.222-.277-.43-.439-.624" />
+            </svg>
+            Quantas doses no total você precisa tomar?
+          </label>
+          <p class="text-sm text-emerald-800 font-medium">O aplicativo vai programar exatamente esta quantidade de doses ao longo dos dias.</p>
+          <input type="number" id="med-total-doses" required min="1" max="100" placeholder="Ex: 5" class="w-full p-4 border-2 border-gray-300 rounded-xl text-lg focus:border-emerald-600 focus:ring-0">
+        </div>
+
+        <!-- Instruções Extras -->
+        <div class="flex flex-col gap-1.5">
+          <label for="med-nota" class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-700" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+            </svg>
+            Instrução extra (Será lida em voz alta):
+          </label>
+          <input type="text" id="med-nota" placeholder="Ex: Tomar antes de comer, tomar com água..." class="w-full p-3 border-2 border-gray-300 rounded-xl text-base focus:border-emerald-600 focus:ring-0">
+        </div>
+
+        <!-- Botões de Ação do Formulário -->
+        <div class="grid grid-cols-2 gap-3 mt-4 pt-4 border-t-2 border-gray-100">
+          <button type="button" onclick="fecharModalCadastro()" class="btn-large bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-2xl border-b-4 border-gray-400 active:border-b-0 active:translate-y-1">
+            CANCELAR
+          </button>
+          <button type="submit" class="btn-large bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1">
+            GRAVAR REMÉDIO
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL DE ALARME ATIVO (Ocupa a tela inteira) -->
+  <!-- ========================================== -->
+  <div id="modal-alarme" class="fixed inset-0 bg-red-950/95 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-md rounded-3xl border-8 border-red-500 shadow-2xl overflow-hidden pulsing-alarm flex flex-col p-6 text-center gap-6">
+      
+      <!-- Ícone Alarme Pulsante Moderno (Sem Emoji de Sino) -->
+      <div class="flex justify-center text-red-600">
+        <svg class="w-16 h-16 animate-bounce" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+        </svg>
+      </div>
+
+      <div>
+        <p class="text-red-700 font-bold text-lg uppercase tracking-wider">Atenção! Hora do Remédio!</p>
+        <h1 id="alarme-nome-remedio" class="text-4xl font-extrabold font-display text-gray-950 mt-2">NOME DO REMÉDIO</h1>
+        <p id="alarme-info-dose" class="text-2xl font-bold text-emerald-800 mt-2 bg-emerald-50 py-2.5 rounded-xl border border-emerald-150">Dose das 08:00</p>
+        <p id="alarme-nota" class="text-lg text-gray-600 mt-3 italic bg-gray-50 p-3 rounded-xl border border-gray-200">Nenhuma observação.</p>
+      </div>
+
+      <!-- Ouvir Instruções novamente -->
+      <button onclick="falarAlarmeAtivo()" class="py-3 px-5 bg-emerald-100 hover:bg-emerald-200 border-2 border-emerald-300 text-emerald-950 font-bold rounded-2xl flex items-center justify-center gap-2 mx-auto transition-all active:scale-95">
+        <svg class="w-6 h-6 text-emerald-800" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"/>
+        </svg>
+        Repetir Instruções por Voz
+      </button>
+
+      <!-- Botões de Ação do Alarme -->
+      <div class="flex flex-col gap-3 mt-2">
+        <button id="btn-tomei" class="btn-large bg-emerald-600 hover:bg-emerald-700 text-white font-black text-2xl rounded-2xl border-b-8 border-emerald-800 active:border-b-2 active:translate-y-1 flex items-center justify-center gap-2">
+          <span>✓</span> JÁ TOMEI!
+        </button>
+        <button id="btn-adiar" class="btn-large bg-amber-500 hover:bg-amber-600 text-white font-bold text-xl rounded-2xl border-b-8 border-amber-700 active:border-b-2 active:translate-y-1">
+          Me lembre em 5 minutos
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Assistente de Áudio (Termo de aceitação obrigatório por navegadores) -->
+  <div id="aviso-audio" class="fixed bottom-4 left-4 right-4 bg-emerald-900 text-white p-4 rounded-2xl shadow-2xl z-40 flex items-center justify-between border-2 border-emerald-400">
+    <p class="text-sm font-bold pr-2">Para ouvir alertas falados e o som do alarme, clique em ativar:</p>
+    <button onclick="ativarAudio()" class="bg-emerald-400 text-emerald-950 font-bold px-4 py-2 rounded-xl text-sm uppercase flex-shrink-0 transition-transform active:scale-95">Ativar</button>
+  </div>
+
+  <!-- JavaScript do Aplicativo -->
+  <script>
+    // ==========================================
+    // ESTADO DO APLICATIVO
+    // ==========================================
+    let medicamentos = [];
+    let dosesTomadasHoje = {}; // Chave: "medicamentoId_doseIndex", Valor: booleano (true se já tomou)
+    let intervaloSelecionado = 8; // Padrão: 8h
+    let audioAtivado = false;
+    let somAlarmeInterval = null;
+    let remedioEmAlarme = null;
+    let doseEmAlarme = null;
+
+    // Inicialização do aplicativo
+    window.onload = function() {
+      carregarDoLocalStorage();
+      atualizarInterface();
+      
+      // Relógio e verificador de alarmes a cada 1 segundo
+      setInterval(atualizarRelogioEVerificarAlarmes, 1000);
+    };
+
+    // ==========================================
+    // SISTEMA DE ÁUDIO & VOZ (Sintetizador & Toques)
+    // ==========================================
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function ativarAudio() {
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      audioAtivado = true;
+      document.getElementById('aviso-audio').classList.add('hidden');
+      lerTexto("Sons ativados.");
+    }
+
+    // Melodia de alarme rítmica e de fácil audição para idosos
+    function iniciarSomAlarme() {
+      if (!audioAtivado) return;
+      pararSomAlarme();
+
+      let alternar = true;
+      somAlarmeInterval = setInterval(() => {
+        try {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(alternar ? 480 : 580, audioCtx.currentTime); // Notas confortáveis
+          alternar = !alternar;
+
+          gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.5);
+        } catch (e) {
+          console.error("Erro no áudio de alarme:", e);
+        }
+      }, 650);
+    }
+
+    function pararSomAlarme() {
+      if (somAlarmeInterval) {
+        clearInterval(somAlarmeInterval);
+        somAlarmeInterval = null;
+      }
+    }
+
+    // Função universal de leitura de voz
+    function lerTexto(texto) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // Cancela falas anteriores
+        const mensagem = new SpeechSynthesisUtterance(texto);
+        mensagem.lang = 'pt-BR';
+        mensagem.rate = 0.85; // Velocidade perfeitamente adaptada para o público idoso
+        window.speechSynthesis.speak(mensagem);
+      }
+    }
+
+    // ==========================================
+    // AJUSTES DE CONTROLE VISUAL (Acessibilidade)
+    // ==========================================
+    function ajustarTexto(fator) {
+      let escalaAtual = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--text-scale')) || 1.0;
+      escalaAtual = Math.max(0.8, Math.min(1.8, escalaAtual + fator));
+      document.documentElement.style.setProperty('--text-scale', escalaAtual);
+    }
+
+    function reiniciarTexto() {
+      document.documentElement.style.setProperty('--text-scale', 1.0);
+    }
+
+    // ==========================================
+    // DATA HELPERS
+    // ==========================================
+    // Retorna a string da data de hoje no formato YYYY-MM-DD
+    function obterDataHojeStr() {
+      const d = new Date();
+      const ano = d.getFullYear();
+      const mes = (d.getMonth() + 1).toString().padStart(2, '0');
+      const dia = d.getDate().toString().padStart(2, '0');
+      return `${ano}-${mes}-${dia}`;
+    }
+
+    // Formata uma data YYYY-MM-DD para visualização amigável
+    function formatarDataLegivel(dataStr) {
+      const hoje = obterDataHojeStr();
+      if (dataStr === hoje) return "Hoje";
+      
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      const amanhaStr = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+      if (dataStr === amanhaStr) return "Amanhã";
+
+      const [ano, mes, dia] = dataStr.split('-');
+      return `${dia}/${mes}`;
+    }
+
+    // ==========================================
+    // ENGENHARIA DE AGENDAMENTO (CÁLCULO DE DOSES)
+    // ==========================================
+    // Calcula as datas e horários exatos para cada dose de forma sequencial real
+    function calcularDosesSequenciais(primeiraDose, intervaloHoras, totalDoses) {
+      let dosesCalculadas = [];
+      let [h, m] = primeiraDose.split(':').map(Number);
+      
+      // Cria a data de início baseada em hoje com a hora informada
+      let dataCursor = new Date();
+      dataCursor.setHours(h, m, 0, 0);
+
+      for (let i = 0; i < totalDoses; i++) {
+        // Copia a data atual do cursor
+        const dataDose = new Date(dataCursor.getTime());
+        
+        const ano = dataDose.getFullYear();
+        const mes = (dataDose.getMonth() + 1).toString().padStart(2, '0');
+        const dia = dataDose.getDate().toString().padStart(2, '0');
+        const horaStr = dataDose.getHours().toString().padStart(2, '0');
+        const minStr = dataDose.getMinutes().toString().padStart(2, '0');
+
+        dosesCalculadas.push({
+          index: i,
+          data: `${ano}-${mes}-${dia}`,
+          hora: `${horaStr}:${minStr}`
+        });
+
+        // Avança o cursor para a próxima dose
+        dataCursor.setHours(dataCursor.getHours() + intervaloHoras);
+      }
+      
+      return dosesCalculadas;
+    }
+
+    // ==========================================
+    // OPERAÇÕES DO BANCO DE DADOS LOCAL (CRUD)
+    // ==========================================
+    function abrirModalCadastro() {
+      document.getElementById('modal-cadastro').classList.remove('hidden');
+      document.getElementById('med-nome').focus();
+      selecionarIntervalo(8, document.querySelector('#grupo-intervalos button:nth-child(3)'));
+    }
+
+    function fecharModalCadastro() {
+      document.getElementById('modal-cadastro').classList.add('hidden');
+      document.getElementById('form-cadastro').reset();
+    }
+
+    function selecionarIntervalo(horas, elementoBtn) {
+      intervaloSelecionado = horas;
+      
+      document.querySelectorAll('.btn-intervalo').forEach(btn => {
+        btn.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-700');
+        btn.classList.add('border-gray-300', 'text-gray-800');
+      });
+      
+      if (elementoBtn) {
+        elementoBtn.classList.remove('border-gray-300', 'text-gray-800');
+        elementoBtn.classList.add('bg-emerald-600', 'text-white', 'border-emerald-700');
+      }
+      
+      document.getElementById('med-intervalo-custom').value = '';
+    }
+
+    function salvarMedicamento(e) {
+      e.preventDefault();
+      
+      const nome = document.getElementById('med-nome').value.trim();
+      const primeiraDose = document.getElementById('med-primeira-dose').value;
+      const nota = document.getElementById('med-nota').value.trim();
+      const totalDoses = parseInt(document.getElementById('med-total-doses').value) || 1;
+      
+      const customVal = document.getElementById('med-intervalo-custom').value;
+      let intervalo = customVal ? parseInt(customVal) : intervaloSelecionado;
+
+      if (!intervalo || intervalo < 1 || intervalo > 168) {
+        alert("Por favor, selecione ou digite um intervalo válido.");
+        return;
+      }
+
+      const dosesGeradas = calcularDosesSequenciais(primeiraDose, intervalo, totalDoses);
+
+      const novoMedicamento = {
+        id: 'med_' + Date.now(),
+        nome: nome,
+        primeiraDose: primeiraDose,
+        intervalo: intervalo,
+        totalDoses: totalDoses,
+        doses: dosesGeradas,
+        nota: nota || "Sem observações."
+      };
+
+      medicamentos.push(novoMedicamento);
+      salvarNoLocalStorage();
+      atualizarInterface();
+      fecharModalCadastro();
+    }
+
+    function excluirMedicamento(id, nome) {
+      if (confirm(`Deseja mesmo remover o remédio: ${nome}?`)) {
+        medicamentos = medicamentos.filter(m => m.id !== id);
+        
+        for (let chave in dosesTomadasHoje) {
+          if (chave.startsWith(id + '_')) {
+            delete dosesTomadasHoje[chave];
+          }
+        }
+        
+        salvarNoLocalStorage();
+        atualizarInterface();
+      }
+    }
+
+    // ==========================================
+    // PERSISTÊNCIA DOS DADOS (Local Storage)
+    // ==========================================
+    function salvarNoLocalStorage() {
+      localStorage.setItem('med_lista_medicamentos_v3', JSON.stringify(medicamentos));
+      localStorage.setItem('med_doses_tomadas_hoje_v3', JSON.stringify(dosesTomadasHoje));
+    }
+
+    function carregarDoLocalStorage() {
+      const medSalvos = localStorage.getItem('med_lista_medicamentos_v3');
+      if (medSalvos) {
+        medicamentos = JSON.parse(medSalvos);
+      }
+
+      const tomadasSalvas = localStorage.getItem('med_doses_tomadas_hoje_v3');
+      if (tomadasSalvas) {
+        dosesTomadasHoje = JSON.parse(tomadasSalvas);
+      }
+    }
+
+    function limparProgressoHoje() {
+      if (confirm("Quer realmente desmarcar todas as doses de hoje para começar novamente?")) {
+        const hojeStr = obterDataHojeStr();
+        medicamentos.forEach(med => {
+          med.doses.forEach(dose => {
+            if (dose.data === hojeStr) {
+              const chaveTomada = `${med.id}_${dose.index}`;
+              delete dosesTomadasHoje[chaveTomada];
+            }
+          });
+        });
+        salvarNoLocalStorage();
+        atualizarInterface();
+      }
+    }
+
+    // ==========================================
+    // RENDERIZAÇÃO DA INTERFACE (HTML DINÂMICO)
+    // ==========================================
+    function atualizarInterface() {
+      renderizarDosesDoDia();
+      renderizarMeusMedicamentos();
+      atualizarStatusProximaDose();
+    }
+
+    // 1. Painel de doses ordenadas para consumo de HOJE
+    function renderizarDosesDoDia() {
+      const container = document.getElementById('lista-doses-hoje');
+      container.innerHTML = '';
+
+      let dosesDeHoje = [];
+      const hojeStr = obterDataHojeStr();
+
+      medicamentos.forEach(med => {
+        med.doses.forEach(dose => {
+          if (dose.data === hojeStr) {
+            dosesDeHoje.push({
+              medId: med.id,
+              nome: med.nome,
+              hora: dose.hora,
+              nota: med.nota,
+              numeroDose: dose.index + 1,
+              totalDoses: med.totalDoses,
+              chaveTomada: `${med.id}_${dose.index}`,
+              doseObj: dose
+            });
+          }
+        });
+      });
+
+      if (dosesDeHoje.length === 0) {
+        container.innerHTML = `
+          <div class="bg-emerald-50/50 p-8 rounded-2xl border-2 border-dashed border-emerald-300 text-center">
+            <div class="text-emerald-700 flex justify-center mb-3">
+              <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+              </svg>
+            </div>
+            <p class="text-xl font-bold text-emerald-850">Não há doses programadas para hoje!</p>
+            <p class="text-gray-600 mt-1">Toque no botão verde acima para cadastrar um remédio.</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Ordena de forma cronológica por horário de hoje
+      dosesDeHoje.sort((a, b) => a.hora.localeCompare(b.hora));
+
+      dosesDeHoje.forEach(dose => {
+        const jaTomou = !!dosesTomadasHoje[dose.chaveTomada];
+        
+        const card = document.createElement('div');
+        card.className = `flex items-center justify-between p-5 rounded-2xl border-2 transition-all shadow-sm ${
+          jaTomou 
+            ? 'bg-gray-100/80 border-gray-300 opacity-60' 
+            : 'bg-white border-emerald-600 hover:border-emerald-700'
+        }`;
+
+        const notaFalar = dose.nota && dose.nota !== 'Sem observações.' ? `. Observação: ${dose.nota}` : '';
+        const textoVozCompleto = `Remédio ${dose.nome}. Dose número ${dose.numeroDose} de ${dose.totalDoses} marcada para hoje às ${dose.hora}${notaFalar}. ${jaTomou ? 'Esta dose já foi tomada.' : 'Ainda precisa tomar.'}`;
+
+        card.innerHTML = `
+          <div class="flex items-start gap-4 flex-1 min-w-0 pr-2">
+            <!-- Botão de marcar tomado (Grande, sem emoji) -->
+            <button onclick="alternarTomada('${dose.chaveTomada}')" class="flex-shrink-0 w-12 h-12 rounded-full border-4 flex items-center justify-center transition-all ${
+              jaTomou 
+                ? 'bg-emerald-600 border-emerald-700 text-white' 
+                : 'bg-white border-emerald-500 hover:border-emerald-600 text-transparent'
+            }" aria-label="Marcar como tomado">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="4" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+              </svg>
+            </button>
+            
+            <div class="min-w-0">
+              <p class="text-2xl font-bold ${jaTomou ? 'line-through text-gray-500' : 'text-gray-950'}">${dose.nome}</p>
+              <div class="flex flex-wrap items-center gap-2 mt-1">
+                <span class="bg-emerald-100 text-emerald-950 border border-emerald-300 font-bold px-2.5 py-0.5 rounded-lg text-sm">
+                  Dose ${dose.numeroDose} de ${dose.totalDoses} - ${dose.hora}
+                </span>
+                ${dose.nota && dose.nota !== 'Sem observações.' ? `
+                  <span class="text-xs text-emerald-800 italic font-medium truncate max-w-[150px]">
+                    Obs: ${dose.nota}
+                  </span>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+
+          <!-- Botão para reproduzir voz individual -->
+          <button onclick="lerTexto('${textoVozCompleto.replace(/'/g, "\\'")}')" class="p-3 bg-gray-50 border border-gray-300 hover:bg-gray-100 active:bg-gray-200 rounded-xl flex items-center justify-center" aria-label="Ouvir instruções do remédio">
+            <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"/>
+            </svg>
+          </button>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function alternarTomada(chave) {
+      dosesTomadasHoje[chave] = !dosesTomadasHoje[chave];
+      salvarNoLocalStorage();
+      atualizarInterface();
+    }
+
+    // 2. Seção de remédios salvos (Visualização completa do banco de dados)
+    function renderizarMeusMedicamentos() {
+      const container = document.getElementById('lista-medicamentos');
+      container.innerHTML = '';
+
+      if (medicamentos.length === 0) {
+        container.innerHTML = `<p class="text-gray-500 text-center p-4">Nenhum medicamento registrado no momento.</p>`;
+        return;
+      }
+
+      medicamentos.forEach(med => {
+        const card = document.createElement('div');
+        card.className = "bg-emerald-900 text-emerald-50 p-5 rounded-2xl border border-emerald-950 shadow-md flex flex-col gap-3";
+        
+        card.innerHTML = `
+          <div class="flex justify-between items-start gap-2">
+            <div>
+              <h3 class="text-2xl font-bold font-display text-white">${med.nome}</h3>
+              <p class="text-sm text-emerald-200 font-bold mt-1">
+                Intervalo: A cada ${med.intervalo} horas | Total de doses prescritas: ${med.totalDoses}.
+              </p>
+            </div>
+            
+            <button onclick="excluirMedicamento('${med.id}', '${med.nome}')" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl text-white font-bold text-sm shadow transition-all active:translate-y-0.5">
+              Excluir
+            </button>
+          </div>
+
+          <div class="bg-emerald-950/60 p-3 rounded-xl border border-emerald-800/80">
+            <span class="text-xs font-bold text-emerald-300 block mb-1.5 uppercase tracking-wider">Histórico e datas programadas:</span>
+            <div class="flex flex-wrap gap-1.5">
+              ${med.doses.map((dose) => {
+                const tomado = !!dosesTomadasHoje[`${med.id}_${dose.index}`];
+                return `
+                  <span class="${tomado ? 'bg-emerald-950/80 text-emerald-400 border-emerald-900/60' : 'bg-emerald-800 border-emerald-600 text-white'} border px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                    <span class="text-[9px] opacity-75">D${dose.index + 1} (${formatarDataLegivel(dose.data)}):</span> ${dose.hora} ${tomado ? '✓' : ''}
+                  </span>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          ${med.nota && med.nota !== "Sem observações." ? `
+            <div class="text-sm bg-emerald-950/40 p-3 rounded-xl border-l-4 border-amber-400 text-emerald-100 flex items-start gap-2">
+              <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+              <div>
+                <strong>Observações:</strong> ${med.nota}
+              </div>
+            </div>
+          ` : ''}
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // 3. Atualiza o aviso dinâmico da próxima dose pendente no dia
+    function atualizarStatusProximaDose() {
+      const statusElement = document.getElementById('proxima-dose-status');
+      
+      let todasDoses = [];
+      const hojeStr = obterDataHojeStr();
+
+      medicamentos.forEach(med => {
+        med.doses.forEach(dose => {
+          todasDoses.push({
+            nome: med.nome,
+            data: dose.data,
+            hora: dose.hora,
+            numeroDose: dose.index + 1,
+            totalDoses: med.totalDoses,
+            jaTomou: !!dosesTomadasHoje[`${med.id}_${dose.index}`]
+          });
+        });
+      });
+
+      if (todasDoses.length === 0) {
+        statusElement.innerText = "Nenhum remédio cadastrado para hoje.";
+        return;
+      }
+
+      const agoraStr = obterHoraAtualStr();
+      
+      // Filtra doses agendadas especificamente para HOJE e que ainda estão pendentes
+      let proximasDosesHoje = todasDoses
+        .filter(d => d.data === hojeStr && !d.jaTomou && d.hora >= agoraStr)
+        .sort((a, b) => a.hora.localeCompare(b.hora));
+
+      if (proximasDosesHoje.length > 0) {
+        const prox = proximasDosesHoje[0];
+        statusElement.innerHTML = `✓ Próximo remédio: <strong class="text-amber-950 text-lg underline">${prox.nome}</strong> (Dose ${prox.numeroDose} de ${prox.totalDoses}) às <strong class="text-amber-950 text-lg">${prox.hora}</strong> hoje.`;
+      } else {
+        // Se não tem futuras hoje, verifica se há atrasadas hoje
+        let atrasadasHoje = todasDoses
+          .filter(d => d.data === hojeStr && !d.jaTomou)
+          .sort((a, b) => a.hora.localeCompare(b.hora));
+
+        if (atrasadasHoje.length > 0) {
+          statusElement.innerHTML = `⚠ Dose <strong class="text-rose-900 underline">atrasada</strong>: Tomar agora <strong class="text-rose-950">${atrasadasHoje[0].nome}</strong> (Dose ${atrasadasHoje[0].numeroDose} de ${atrasadasHoje[0].totalDoses}) de hoje às ${atrasadasHoje[0].hora}.`;
+        } else {
+          // Verifica se há doses pendentes em dias futuros
+          let futurasBreves = todasDoses
+            .filter(d => d.data > hojeStr && !d.jaTomou)
+            .sort((a, b) => a.data.localeCompare(b.data) || a.hora.localeCompare(b.hora));
+
+          if (futurasBreves.length > 0) {
+            const proxFutura = futurasBreves[0];
+            statusElement.innerHTML = `✓ Doses de hoje concluídas! Próxima dose programada: <strong class="text-emerald-950">${proxFutura.nome}</strong> (${formatarDataLegivel(proxFutura.data)}) às <strong>${proxFutura.hora}</strong>.`;
+          } else {
+            statusElement.innerHTML = "✓ Excelente! Você concluiu com sucesso todo o tratamento programado!";
+          }
+        }
+      }
+    }
+
+    // ==========================================
+    // VERIFICAÇÃO AUTOMÁTICA DE HORÁRIOS (SISTEMA)
+    // ==========================================
+    function obterHoraAtualStr() {
+      const agora = new Date();
+      return agora.getHours().toString().padStart(2, '0') + ':' + agora.getMinutes().toString().padStart(2, '0');
+    }
+
+    function atualizarRelogioEVerificarAlarmes() {
+      const agora = new Date();
+      
+      const h = agora.getHours().toString().padStart(2, '0');
+      const m = agora.getMinutes().toString().padStart(2, '0');
+      const s = agora.getSeconds().toString().padStart(2, '0');
+      document.getElementById('relogio-grande').innerText = `${h}:${m}:${s}`;
+
+      if (s === '00') {
+        atualizarStatusProximaDose();
+      }
+
+      if (remedioEmAlarme) return; // Se já há um alarme ativo, evita abrir outro em cascata
+
+      const horaAtualStr = `${h}:${m}`;
+      const hojeStr = obterDataHojeStr();
+
+      for (let i = 0; i < medicamentos.length; i++) {
+        const med = medicamentos[i];
+        
+        for (let j = 0; j < med.doses.length; j++) {
+          const dose = med.doses[j];
+          // Valida se a dose pertence ao dia de hoje e ao minuto exato
+          if (dose.data === hojeStr && dose.hora === horaAtualStr) {
+            const chaveTomada = `${med.id}_${dose.index}`;
+            if (!dosesTomadasHoje[chaveTomada]) {
+              dispararAlarme(med, dose);
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    // ==========================================
+    // ALARME ATIVO (DISPARO E REPRODUÇÃO)
+    // ==========================================
+    function dispararAlarme(med, dose) {
+      remedioEmAlarme = med;
+      doseEmAlarme = dose;
+
+      const doseNum = dose.index + 1;
+      const totalDoses = med.totalDoses;
+
+      document.getElementById('alarme-nome-remedio').innerText = med.nome.toUpperCase();
+      document.getElementById('alarme-info-dose').innerText = `Dose ${doseNum} de ${totalDoses} - Horário: ${dose.hora}`;
+      
+      document.getElementById('alarme-nota').innerText = med.nota && med.nota !== "Sem observações." 
+        ? `Atenção: ${med.nota}` 
+        : "Instrução: Lembre de tomar o remédio com um copo de água.";
+
+      document.getElementById('modal-alarme').classList.remove('hidden');
+      
+      iniciarSomAlarme();
+      falarAlarmeAtivo();
+    }
+
+    // Fala as instruções e a observação de forma clara no momento do alarme
+    function falarAlarmeAtivo() {
+      if (remedioEmAlarme && doseEmAlarme) {
+        const doseNum = doseEmAlarme.index + 1;
+        let fraseVoz = `Atenção! Hora do remédio: ${remedioEmAlarme.nome}. Dose número ${doseNum} de ${remedioEmAlarme.totalDoses}.`;
+        
+        if (remedioEmAlarme.nota && remedioEmAlarme.nota !== "Sem observações.") {
+          fraseVoz += ` Atenção para a observação importante: ${remedioEmAlarme.nota}`;
+        }
+        
+        lerTexto(fraseVoz);
+      }
+    }
+
+    function fecharAlarme() {
+      document.getElementById('modal-alarme').classList.add('hidden');
+      pararSomAlarme();
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      remedioEmAlarme = null;
+      doseEmAlarme = null;
+    }
+
+    document.getElementById('btn-tomei').addEventListener('click', () => {
+      if (remedioEmAlarme && doseEmAlarme) {
+        const chaveTomada = `${remedioEmAlarme.id}_${doseEmAlarme.index}`;
+        dosesTomadasHoje[chaveTomada] = true;
+        salvarNoLocalStorage();
+        atualizarInterface();
+      }
+      fecharAlarme();
+    });
+
+    document.getElementById('btn-adiar').addEventListener('click', () => {
+      const medCopia = remedioEmAlarme;
+      const doseCopia = doseEmAlarme;
+      fecharAlarme();
+
+      setTimeout(() => {
+        const chaveTomada = `${medCopia.id}_${doseCopia.index}`;
+        if (!dosesTomadasHoje[chaveTomada]) {
+          dispararAlarme(medCopia, doseCopia);
+        }
+      }, 5 * 60 * 1000); // Repete o alarme em 5 minutos
+    });
+
+  </script>
+</body>
+</html>
