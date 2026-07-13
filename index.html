@@ -295,6 +295,7 @@
     // ==========================================
     let medicamentos = [];
     let dosesTomadasHoje = {}; // Chave: "medicamentoId_doseIndex", Valor: booleano (true se já tomou)
+    let alarmesAtivadosEsteMinuto = new Set(); // Evita relançar o alarme consecutivamente no mesmo minuto
     let intervaloSelecionado = 8; // Padrão: 8h
     let audioAtivado = false;
     let somAlarmeInterval = null;
@@ -821,7 +822,11 @@
           // Valida se a dose pertence ao dia de hoje e ao minuto exato
           if (dose.data === hojeStr && dose.hora === horaAtualStr) {
             const chaveTomada = `${med.id}_${dose.index}`;
-            if (!dosesTomadasHoje[chaveTomada]) {
+            const chaveMinuto = `${med.id}_${dose.index}_${hojeStr}_${horaAtualStr}`;
+            
+            // Verifica se a dose já foi tomada e se já não foi exibida para este exato minuto
+            if (!dosesTomadasHoje[chaveTomada] && !alarmesAtivadosEsteMinuto.has(chaveMinuto)) {
+              alarmesAtivadosEsteMinuto.add(chaveMinuto); // Marca como exibido neste minuto
               dispararAlarme(med, dose);
               return;
             }
@@ -890,14 +895,15 @@
     document.getElementById('btn-adiar').addEventListener('click', () => {
       const medCopia = remedioEmAlarme;
       const doseCopia = doseEmAlarme;
-      fecharAlarme();
+      fecharAlarme(); // Limpa as variáveis globais temporárias com segurança
 
+      // O setTimeout agora funciona perfeitamente, pois o minuto atual foi bloqueado no relógio principal
       setTimeout(() => {
         const chaveTomada = `${medCopia.id}_${doseCopia.index}`;
         if (!dosesTomadasHoje[chaveTomada]) {
           dispararAlarme(medCopia, doseCopia);
         }
-      }, 5 * 60 * 1000); // Repete o alarme em 5 minutos
+      }, 5 * 60 * 1000); // Agenda o novo alerta exatamente para 5 minutos
     });
 
   </script>
